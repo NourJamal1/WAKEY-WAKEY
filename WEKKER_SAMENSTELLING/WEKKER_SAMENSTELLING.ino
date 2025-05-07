@@ -1,70 +1,79 @@
-// FUNCTIES DECLARIEREN
-void gewicht_sensor_setup();
-void save_gewicht_in_varibel();
-void mp3_player_setup();
-void play_mp3();
-void button_setup();
-void button_state_lezen();
-void timer_one_start();
-void timer_two_start();
-void update();
-//____________________________________________________________
-// Algemene declaraties
-long huidigetijd = 0;
-bool mp3OneOn = false;
-bool mp3TwoOn = false;
-//____________________________________________________________
-// INCLUDE GEWICHT
-#include <HX711_ADC.h>
-// PINS GEWICHT
-const int HX711_dout = 6; //mcu > HX711 dout pin
-const int HX711_sck = 7; //mcu > HX711 sck pin
-HX711_ADC LoadCell(HX711_dout, HX711_sck); // set pins
-// GLOBAL DICLARATIONS GEWICHT
-const int calVal_calVal_eepromAdress = 0;
-unsigned long t = 0;
-float gewicht = 0; // global declaration for gewicht in gram
-//____________________________________________________________
-// INCLUDE MP3 PLAYER
-#include "mp3tf16p.h"
-// PINS MP3 PLAYER
-const int RX = 10;// RX pin
-const int TX = 11;// TX pin
-MP3Player mp3(RX, TX);// (int RX, int TX) pins for sirial comunication 
-// GLOBAL DICLARATIONS MP3 PLAYER
-int trackNumber = 3;// change track hier, file is sorted by date
-int volume = 1;// 0 is lowest, and 30 is highst
-boolean isplaying = false; // if a song is playing then true
-//____________________________________________________________
-// INCLUDE BUTTON
-// PINS BUTTON
-const int buttonPin = 2;      // Pin waarop de knop is aangesloten
-const int outputPin = 12;     // Pin die hoog wordt gehouden
-// GLOBAL DICLARATIONS BUTTON
-int buttonState = LOW;        // Variabele om de huidige status van de knop te lezen
-int lastButtonState = LOW;    // Variabele om de vorige knopstatus op te slaan
-unsigned long lastDebounceTime = 0; // Tijdstip van de laatste knopstatusverandering
-const unsigned long debounceDelay = 50; // Debounce tijd in milliseconden
-//____________________________________________________________
-// INCLUDE TIMER ONE
-// PINS TIMER ONE
-// GLOBAL DICLARATIONS TIMER ONE
-const unsigned long timerOneDuration = 5000; // 29700000; // Timer van 8,25 uur
-unsigned long startTimeTimerOne = 0;      // Tijdstip waarop de timer begint
-unsigned long endTimeTimerOne = 0;      // Tijdstip waarop de timer eindigt
-bool timerOneActive = false;         // Status van de timer
-bool timerOneEnded = false;      // of de timer geweest is
-//____________________________________________________________
-// INCLUDE TIMER TWO
-// PINS TIMER TWO
-// GLOBAL DICLARATIONS TIMER TWO
-const unsigned long timerTwoDuration =15000; // 29700000; // Timer van 8,25 uur
-unsigned long startTimeTimerTwo = 0;      // Tijdstip waarop de timer begint
-unsigned long endTimeTimerTwo = 0;      // Tijdstip waarop de timer eindigt
-bool timerTwoActive = false;         // Status van de timer
-bool timerTwoEnded = false;      // of de timer geweest is
-//___________________________________________________________
+// ____________________________________________________________
+// BIBLIOTHEKEN
+#include <HX711_ADC.h>        // Gewichtssensor
+#include "mp3tf16p.h"         // MP3-speler
 
+// ____________________________________________________________
+// FUNCTIEDECLARATIES
+void gewicht_sensor_setup();           // Setup gewichtssensor
+void save_gewicht_in_varibel();        // Gewicht opslaan in variabele
+void mp3_player_setup();               // Setup MP3-speler
+void play_mp3();                       // Speel MP3-bestand af
+void button_setup();                   // Setup knop
+void button_state_lezen();            // Lees knopstatus
+void timer_one_start();               // Start eerste timer
+void timer_two_start();               // Start tweede timer
+void update();                        // Update globale variabelen
+
+// ____________________________________________________________
+// ALGEMENE VARIABELEN
+long huidigetijd = 0;                 // Tijd in milliseconden sinds start
+bool mp3OneOn = false;                // Status eerste MP3
+bool mp3TwoOn = false;                // Status tweede MP3
+
+// ____________________________________________________________
+// PINDEFINITIES
+
+// PINS GEWICHT
+const int HX711_dout = 6;             // MCU > HX711 DOUT pin
+const int HX711_sck = 7;              // MCU > HX711 SCK pin
+
+// PINS MP3 PLAYER
+const int MP3_RX = 10;                // RX pin MP3-speler
+const int MP3_TX = 11;                // TX pin MP3-speler
+
+// PINS BUTTON
+const int BUTTON_PIN = 2;             // Pin waarop de knop is aangesloten
+const int OUTPUT_PIN = 12;            // Pin die hoog wordt gehouden
+
+// ____________________________________________________________
+// GEWICHT SENSOR VARIABELEN
+HX711_ADC LoadCell(HX711_dout, HX711_sck);    // HX711 object aanmaken
+const int calVal_calVal_eepromAdress = 0;     // EEPROM-adres voor kalibratie
+unsigned long t = 0;                           // Tijdvariabele voor interval
+float gewicht = 0.0;                           // Gewicht in gram (globale variabele)
+
+// ____________________________________________________________
+// MP3 PLAYER VARIABELEN
+MP3Player mp3(MP3_RX, MP3_TX);        // Object voor MP3-speler
+int trackNumber = 3;                  // Verander tracknummer; bestanden gesorteerd op datum
+int volume = 1;                       // Volume van MP3: 0 (laag) tot 30 (hoog)
+bool isplaying = false;              // MP3 speelt af (true) of niet (false)
+
+// ____________________________________________________________
+// BUTTON VARIABELEN
+int buttonState = LOW;                      // Huidige status van de knop
+int lastButtonState = LOW;                  // Vorige status van de knop
+unsigned long lastDebounceTime = 0;         // Tijdstip van de laatste knopstatusverandering
+const unsigned long debounceDelay = 50;     // Debouncetijd in milliseconden
+
+// ____________________________________________________________
+// TIMER ONE VARIABELEN
+const unsigned long timerOneDuration = 5000;  // Eerste timerduur (bijv. 8,25 uur → test: 5 sec)
+unsigned long startTimeTimerOne = 0;          // Starttijd timer 1
+unsigned long endTimeTimerOne = 0;            // Eindtijd timer 1
+bool timerOneActive = false;                  // Of timer 1 actief is
+bool timerOneEnded = false;                   // Of timer 1 al is afgelopen
+
+// ____________________________________________________________
+// TIMER TWO VARIABELEN
+const unsigned long timerTwoDuration = 15000; // Tweede timerduur (test: 15 sec)
+unsigned long startTimeTimerTwo = 0;          // Starttijd timer 2
+unsigned long endTimeTimerTwo = 0;            // Eindtijd timer 2
+bool timerTwoActive = false;                  // Of timer 2 actief is
+bool timerTwoEnded = false;                   // Of timer 2 al is afgelopen
+
+// ____________________________________________________________
 void setup() {
   gewicht_sensor_setup();// gewicht sensor setup
   mp3_player_setup();// mp3 player setup
