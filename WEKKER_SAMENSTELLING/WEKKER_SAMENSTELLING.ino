@@ -1,5 +1,5 @@
 // ____________________________________________________________
-// BIBLIOTHEKEN
+// BIBLIOTHEKENbbbbbbb
 #include <HX711_ADC.h>        // Gewichtssensor
 #include "mp3tf16p.h"         // MP3-speler
 
@@ -18,13 +18,13 @@ void update();
 // ____________________________________________________________
 // ALGEMENE VARIABELEN
 long huidigetijd = 0;
-bool mp3OneOn = false;
-bool mp3TwoOn = false;
+bool eersteAlarmActief = false;
+bool tweedeAlarmActief = false;
 
 // ____________________________________________________________
 // PINS GEWICHT
-const int HX711_dout = 6;             // mcu > HX711 dout pin
-const int HX711_sck = 7;              // mcu > HX711 sck pin
+const int gewichtSensorDataPin = 6;             // mcu > HX711 dout pin
+const int gewichtSensorClockPin = 7;            // mcu > HX711 sck pin
 
 // ____________________________________________________________
 // PINS MP3 PLAYER
@@ -38,7 +38,7 @@ const int outputPin = 12;            // Pin die hoog wordt gehouden
 
 // ____________________________________________________________
 // GEWICHT SENSOR VARIABELEN
-HX711_ADC LoadCell(HX711_dout, HX711_sck); // set pins
+HX711_ADC LoadCell(gewichtSensorDataPin, gewichtSensorClockPin); // set pins
 const int calVal_calVal_eepromAdress = 0;
 unsigned long t = 0;
 float gewicht = 0; // global declaration for gewicht in gram
@@ -95,20 +95,20 @@ void loop() {
     timerOneEnded = true;
   }
   // Als timer one voorbij en je ligt nog in bed is dan speel de alarm af
-  if (timerOneEnded && gewicht > 300 && !mp3OneOn){
+  if (timerOneEnded && gewicht > 300 && !eersteAlarmActief){
     play_mp3(); // alarm afspelen
-    mp3OneOn = true; // of alarm one al begonnen is
+    eersteAlarmActief = true; // of alarm one al begonnen is
   }
   // Stop de alarm als je uit bed bent en de knop indrukt en start de tweede timer
   if (buttonState == HIGH && gewicht < 300 || mp3.playCompleted()){
     mp3.player.stop(); // stopt de mp3
     timer_two_start(); // start de tweede timer
-    mp3TwoOn = false; // of de tweede alarm geweest is wordt weer uit gezet
+    tweedeAlarmActief = false; // of de tweede alarm geweest is wordt weer uit gezet
   }
   // Als timer Two bezig en je gaat in bed liggen dan speel de alarm af
-  if (timerTwoActive && gewicht > 300 && !mp3TwoOn){
+  if (timerTwoActive && gewicht > 300 && !tweedeAlarmActief){
     play_mp3();// alarm afspelen
-    mp3TwoOn = true; //of alarm two al begonnen is
+    tweedeAlarmActief = true; //of alarm two al begonnen is
   }
   // Als timer two voorbij is 
   if (huidigetijd > endTimeTimerTwo){
@@ -118,7 +118,6 @@ void loop() {
   Serial.println(endTimeTimerTwo-huidigetijd);
 
 }
-  
 
 
 // GEWICHT SENSOR FUNCTIES+++++++++++++++++++++++++++++++++++++
@@ -164,6 +163,7 @@ void gewicht_sensor_setup(){
     Serial.println("ERROR: CHECK WIREING");
   }
 }
+
 // deze functie slaat de gewicht op in de variabel gewicht
 void save_gewicht_in_varibel(){
   static boolean newDataReady = 0;
@@ -184,9 +184,6 @@ void save_gewicht_in_varibel(){
     }
   }
 }
-//____________________________________________________________
-
-
 
 
 // MP3 FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++++
@@ -203,10 +200,6 @@ void play_mp3(){
   //DEBUG
   //mp3.serialPrintStatus(MP3_ALL_MESSAGE);//status mp3 print
 }
-//____________________________________________________________
-
-
-
 
 
 // KNOP FUNCTIES++++++++++++++++++++++++++++++++++++++++++++++
@@ -217,6 +210,7 @@ void button_setup(){
   digitalWrite(outputPin, HIGH);   // Houd pin 12 continu hoog
   Serial.begin(9600);              // Start seriële monitor voor debuggen 
 }
+
 // deze functie slaat de satus van de knop op in de variabel buttonState
 void button_state_lezen(){
   // Lees de huidige status van de knop
@@ -241,10 +235,7 @@ void button_state_lezen(){
 
   // Sla de huidige knopstatus op voor de volgende loop
   lastButtonState = sensorReading;
-
 }
-//____________________________________________________________
-
 
 
 // EXTRA FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++
@@ -257,6 +248,7 @@ void timer_one_start(){
   //Serial.println("Timer one gestart!");
   }
 }
+
 // deze functie start de tweede timer (na wekker timer)
 void timer_two_start(){ 
   startTimeTimerTwo = millis();  // Starttijd vastleggen
@@ -264,10 +256,10 @@ void timer_two_start(){
   timerTwoActive = true;    // Zet timer aan
   //Serial.println("Timer two gestart!");
 }
+
 // deze functie update alle belagrijke global variabelen
 void update(){
   button_state_lezen(); //buttonState wordt bijgewerkt
   save_gewicht_in_varibel(); // gewicht wordt bijgewerkt
   huidigetijd = millis(); // huidigetijd wordt bij gewerkt
 }
-//____________________________________________________________
