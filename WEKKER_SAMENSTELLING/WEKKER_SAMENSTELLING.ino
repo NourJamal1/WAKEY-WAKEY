@@ -1,5 +1,5 @@
 // ____________________________________________________________
-// BIBLIOTHEKENbbbbbbb
+// BIBLIOTHEKEN
 #include <HX711_ADC.h>        // Gewichtssensor
 #include "mp3tf16p.h"         // MP3-speler
 
@@ -116,7 +116,6 @@ void loop() {
     timerTwoEnded = true; // timer twee is voorbij
   }
   Serial.println(endTimeTimerTwo-huidigetijd);
-
 }
 
 
@@ -124,8 +123,6 @@ void loop() {
 // Dit is de setup van de gewicht sensor
 void gewicht_sensor_setup(){ 
   Serial.begin(9600); delay(10);
-  //Serial.println();
-  //Serial.println("Starting...");
 
   float calibrationValue = 23.20; // calibration value
   
@@ -133,7 +130,6 @@ void gewicht_sensor_setup(){
   LoadCell.setTareOffset(newTareOffset); // Set tare offset
 
   LoadCell.begin();
-  //LoadCell.setReverseOutput();
   unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time 
   boolean _tare = false; //set this to false if you don't want tare to be performed in the next step/ or true to cal an comment long tare diclaration
   LoadCell.start(stabilizingtime, _tare);
@@ -142,20 +138,8 @@ void gewicht_sensor_setup(){
   }
   else {
     LoadCell.setCalFactor(calibrationValue); // set calibration factor (float)
-    // DEBUG
-    //Serial.println("Startup is complete");
   }
   while (!LoadCell.update());
-  //DEBUG
-    //Serial.print("Calibration value: ");
-    //Serial.println(LoadCell.getCalFactor());
-    //Serial.print("HX711 measured conversion time ms: ");
-    //Serial.println(LoadCell.getConversionTime());
-    //Serial.print("HX711 measured sampling rate HZ: ");
-    //Serial.println(LoadCell.getSPS());
-    //Serial.print("HX711 measured settlingtime ms: ");
-    //Serial.println(LoadCell.getSettlingTime());
-    //Serial.println("Note that the settling time may increase significantly if you use delay() in your sketch!");
   if (LoadCell.getSPS() < 7) {
     Serial.println("ERROR: CHECK WIREING");
   }
@@ -175,10 +159,6 @@ void save_gewicht_in_varibel(){
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
       gewicht = LoadCell.getData();
-      //DEBUG
-        //Serial.print("Load_cell output val: ");
-        //Serial.println(gewicht);
-        //Serial.println(LoadCell.getTareOffset());
       newDataReady = 0;
       t = millis();
     }
@@ -197,8 +177,6 @@ void mp3_player_setup(){
 void play_mp3(){
   mp3.playTrackNumber(trackNumber, volume, false);
   isplaying = true;
-  //DEBUG
-  //mp3.serialPrintStatus(MP3_ALL_MESSAGE);//status mp3 print
 }
 
 
@@ -226,10 +204,6 @@ void button_state_lezen(){
     // Controleer of de status echt is veranderd
     if (sensorReading != buttonState) {
       buttonState = sensorReading;
-      //DEBUG
-      // Print knopstatus naar seriële monitor (optioneel)
-      //Serial.print("Button State: ");
-      //Serial.println(buttonState);
     }
   }
 
@@ -245,7 +219,6 @@ void timer_one_start(){
     startTimeTimerOne = millis();  // Starttijd vastleggen
     endTimeTimerOne = startTimeTimerOne + timerOneDuration; // eind tijd vastleggen
     timerOneActive = true;    // Zet timer aan
-  //Serial.println("Timer one gestart!");
   }
 }
 
@@ -254,7 +227,6 @@ void timer_two_start(){
   startTimeTimerTwo = millis();  // Starttijd vastleggen
   endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration; // eind tijd vastleggen
   timerTwoActive = true;    // Zet timer aan
-  //Serial.println("Timer two gestart!");
 }
 
 // deze functie update alle belagrijke global variabelen
