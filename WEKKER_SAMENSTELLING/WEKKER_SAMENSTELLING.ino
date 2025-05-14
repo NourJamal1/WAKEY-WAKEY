@@ -23,139 +23,139 @@ bool tweedeAlarmActief = false;
 
 // ____________________________________________________________
 // PINS GEWICHT
-const int gewichtSensorDataPin = 6;             // mcu > HX711 dout pin
-const int gewichtSensorClockPin = 7;            // mcu > HX711 sck pin
+const int gewichtSensorDataPin = 6;             // MCU > HX711 datapin
+const int gewichtSensorClockPin = 7;            // MCU > HX711 klokpin
 
 // ____________________________________________________________
-// PINS MP3 PLAYER
-const int RX = 10;                    // RX pin
-const int TX = 11;                    // TX pin
+// PINS MP3-SPELER
+const int RX = 10;                    // RX-pin
+const int TX = 11;                    // TX-pin
 
 // ____________________________________________________________
-// PINS BUTTON
+// PINS KNOP
 const int buttonPin = 2;             // Pin waarop de knop is aangesloten
 const int outputPin = 12;            // Pin die hoog wordt gehouden
 
 // ____________________________________________________________
-// GEWICHT SENSOR VARIABELEN
-HX711_ADC LoadCell(gewichtSensorDataPin, gewichtSensorClockPin); // set pins
+// GEWICHTSENSOR VARIABELEN
+HX711_ADC LoadCell(gewichtSensorDataPin, gewichtSensorClockPin); // stel pinnen in
 const int calVal_calVal_eepromAdress = 0;
 unsigned long t = 0;
-float gewicht = 0; // global declaration for gewicht in gram
+float gewicht = 0; // globale variabele voor gewicht in gram
 
 // ____________________________________________________________
-// MP3 PLAYER VARIABELEN
-MP3Player mp3(RX, TX);               // pins for serial communication
-int trackNumber = 3;                 // change track hier, file is sorted by date
-int volume = 1;                      // 0 is lowest, and 30 is highest
-boolean isplaying = false;          // if a song is playing then true
+// MP3-SPELER VARIABELEN
+MP3Player mp3(RX, TX);               // pinnen voor seriële communicatie
+int trackNumber = 3;                 // wijzig track hier, bestanden zijn gesorteerd op datum
+int volume = 1;                      // 0 is het zachtst, 30 is het hardst
+boolean isplaying = false;          // als een geluid wordt afgespeeld dan true
 
 // ____________________________________________________________
-// BUTTON VARIABELEN
+// KNOP VARIABELEN
 int buttonState = LOW;                  // Variabele om de huidige status van de knop te lezen
 int lastButtonState = LOW;              // Variabele om de vorige knopstatus op te slaan
 unsigned long lastDebounceTime = 0;     // Tijdstip van de laatste knopstatusverandering
-const unsigned long debounceDelay = 50; // Debounce tijd in milliseconden
+const unsigned long debounceDelay = 50; // Ontdenderingstijd in milliseconden
 
 // ____________________________________________________________
-// TIMER ONE VARIABELEN
+// TIMER EEN VARIABELEN
 const unsigned long timerOneDuration = 5000;     // Timer van 8,25 uur (test: 5 sec)
 unsigned long startTimeTimerOne = 0;             // Tijdstip waarop de timer begint
 unsigned long endTimeTimerOne = 0;               // Tijdstip waarop de timer eindigt
 bool timerOneActive = false;                     // Status van de timer
-bool timerOneEnded = false;                      // Of de timer geweest is
+bool timerOneEnded = false;                      // Of de timer afgelopen is
 
 // ____________________________________________________________
-// TIMER TWO VARIABELEN
+// TIMER TWEE VARIABELEN
 const unsigned long timerTwoDuration = 15000;    // Timer van 8,25 uur (test: 15 sec)
 unsigned long startTimeTimerTwo = 0;             // Tijdstip waarop de timer begint
 unsigned long endTimeTimerTwo = 0;               // Tijdstip waarop de timer eindigt
 bool timerTwoActive = false;                     // Status van de timer
-bool timerTwoEnded = false;                      // Of de timer geweest is
+bool timerTwoEnded = false;                      // Of de timer afgelopen is
 
 // ____________________________________________________________
 void setup() {
-  gewicht_sensor_setup(); // gewicht sensor setup
-  mp3_player_setup();     // mp3 player setup
-  button_setup();         // button setup
+  gewicht_sensor_setup(); // initialiseer gewichtssensor
+  mp3_player_setup();     // initialiseer mp3-speler
+  button_setup();         // initialiseer knop
 }
 
 // ____________________________________________________________
 void loop() {
 
-  update();// update global variabelen
-  // zolang de timer nog niet geweest is, probeer hem te starten
+  update(); // update globale variabelen
+  // zolang de timer nog niet gestart is, probeer hem te starten
   while (!timerOneActive && !timerOneEnded) {
-    update();// update global variabelen
-    timer_one_start(); // probeer timer one te starten.
+    update(); // update globale variabelen
+    timer_one_start(); // probeer timer één te starten
   }
-  // checken of timer one voorbij is
+  // controleer of timer één voorbij is
   if (huidigetijd > endTimeTimerOne){
     timerOneActive = false;
     timerOneEnded = true;
   }
-  // Als timer one voorbij en je ligt nog in bed is dan speel de alarm af
+  // Als timer één voorbij is en je ligt nog in bed, speel dan het alarm af
   if (timerOneEnded && gewicht > 300 && !eersteAlarmActief){
-    play_mp3(); // alarm afspelen
-    eersteAlarmActief = true; // of alarm one al begonnen is
+    play_mp3(); // speel alarmgeluid af
+    eersteAlarmActief = true; // geef aan dat het eerste alarm gestart is
   }
-  // Stop de alarm als je uit bed bent en de knop indrukt en start de tweede timer
+  // Stop het alarm als je uit bed bent en op de knop drukt, en start timer twee
   if (buttonState == HIGH && gewicht < 300 || mp3.playCompleted()){
-    mp3.player.stop(); // stopt de mp3
+    mp3.player.stop(); // stop het mp3-geluid
     timer_two_start(); // start de tweede timer
-    tweedeAlarmActief = false; // of de tweede alarm geweest is wordt weer uit gezet
+    tweedeAlarmActief = false; // reset status tweede alarm
   }
-  // Als timer Two bezig en je gaat in bed liggen dan speel de alarm af
+  // Als timer twee actief is en je weer in bed ligt, speel dan opnieuw het alarm af
   if (timerTwoActive && gewicht > 300 && !tweedeAlarmActief){
-    play_mp3();// alarm afspelen
-    tweedeAlarmActief = true; //of alarm two al begonnen is
+    play_mp3(); // speel alarmgeluid af
+    tweedeAlarmActief = true; // geef aan dat tweede alarm gestart is
   }
-  // Als timer two voorbij is 
+  // Als timer twee voorbij is
   if (huidigetijd > endTimeTimerTwo){
-    timerTwoActive = false; // timer twee niet meer actief
-    timerTwoEnded = true; // timer twee is voorbij
+    timerTwoActive = false; // zet timer twee uit
+    timerTwoEnded = true; // markeer timer twee als voltooid
   }
-  Serial.println(endTimeTimerTwo-huidigetijd);
+  Serial.println(endTimeTimerTwo - huidigetijd);
 }
 
 
-// GEWICHT SENSOR FUNCTIES+++++++++++++++++++++++++++++++++++++
-// Dit is de setup van de gewicht sensor
+// GEWICHTSENSOR FUNCTIES+++++++++++++++++++++++++++++++++++++
+// Dit is de setup van de gewichtssensor
 void gewicht_sensor_setup(){ 
   Serial.begin(9600); delay(10);
 
-  float calibrationValue = 23.20; // calibration value
+  float calibrationValue = 23.20; // kalibratiewaarde
   
-  const long newTareOffset = 8271272; // tera offset (zero point)
-  LoadCell.setTareOffset(newTareOffset); // Set tare offset
+  const long newTareOffset = 8271272; // nulpunt-offset
+  LoadCell.setTareOffset(newTareOffset); // stel offset in
 
   LoadCell.begin();
-  unsigned long stabilizingtime = 2000; // tare preciscion can be improved by adding a few seconds of stabilizing time 
-  boolean _tare = false; //set this to false if you don't want tare to be performed in the next step/ or true to cal an comment long tare diclaration
+  unsigned long stabilizingtime = 2000; // stabilisatietijd om meetnauwkeurigheid te verbeteren
+  boolean _tare = false; // zet op true om tarra uit te voeren, false om over te slaan
   LoadCell.start(stabilizingtime, _tare);
   if (LoadCell.getTareTimeoutFlag()) {
-    Serial.println("ERROR: CHECK WIRING");
+    Serial.println("FOUT: CONTROLEER BEKABELING");
   }
   else {
-    LoadCell.setCalFactor(calibrationValue); // set calibration factor (float)
+    LoadCell.setCalFactor(calibrationValue); // stel kalibratiefactor in (float)
   }
   while (!LoadCell.update());
   if (LoadCell.getSPS() < 7) {
-    Serial.println("ERROR: CHECK WIREING");
+    Serial.println("FOUT: CONTROLEER BEKABELING");
   }
   else if (LoadCell.getSPS() > 100) {
-    Serial.println("ERROR: CHECK WIREING");
+    Serial.println("FOUT: CONTROLEER BEKABELING");
   }
 }
 
-// deze functie slaat de gewicht op in de variabel gewicht
+// Deze functie slaat het gewicht op in de variabele 'gewicht'
 void save_gewicht_in_varibel(){
   static boolean newDataReady = 0;
-  const int serialPrintInterval = 500; //increase value to slow down serial print activity
-  // check for new data/start next conversion:
+  const int serialPrintInterval = 500; // verhoog deze waarde om seriële uitvoer te vertragen
+  // controleer op nieuwe data en start nieuwe meting
   if (LoadCell.update()) newDataReady = true;
 
-  // get smoothed value from the dataset:
+  // haal gemiddelde waarde op uit dataset
   if (newDataReady) {
     if (millis() > t + serialPrintInterval) {
       gewicht = LoadCell.getData();
@@ -167,13 +167,13 @@ void save_gewicht_in_varibel(){
 
 
 // MP3 FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++++
-// dit is de setup van de mp3 player
+// Dit is de setup van de mp3-speler
 void mp3_player_setup(){
   Serial.begin(9600);
   mp3.initialize();
 }
 
-// deze functie speel een geluid af die op de mp3 player is opgeslagen
+// Deze functie speelt een geluid af dat op de mp3-speler is opgeslagen
 void play_mp3(){
   mp3.playTrackNumber(trackNumber, volume, false);
   isplaying = true;
@@ -181,15 +181,15 @@ void play_mp3(){
 
 
 // KNOP FUNCTIES++++++++++++++++++++++++++++++++++++++++++++++
-// dit is de setup van de knop
+// Dit is de setup van de knop
 void button_setup(){
-  pinMode(buttonPin, INPUT);       // Pin 2 als input
-  pinMode(outputPin, OUTPUT);      // Pin 12 als output
-  digitalWrite(outputPin, HIGH);   // Houd pin 12 continu hoog
+  pinMode(buttonPin, INPUT);       // Pin 2 als invoer
+  pinMode(outputPin, OUTPUT);      // Pin 12 als uitvoer
+  digitalWrite(outputPin, HIGH);   // Houd pin 12 constant hoog
   Serial.begin(9600);              // Start seriële monitor voor debuggen 
 }
 
-// deze functie slaat de satus van de knop op in de variabel buttonState
+// Deze functie slaat de status van de knop op in de variabele buttonState
 void button_state_lezen(){
   // Lees de huidige status van de knop
   int sensorReading = digitalRead(buttonPin);
@@ -201,7 +201,7 @@ void button_state_lezen(){
 
   // Pas de status toe na de debounce delay
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    // Controleer of de status echt is veranderd
+    // Controleer of de status daadwerkelijk is veranderd
     if (sensorReading != buttonState) {
       buttonState = sensorReading;
     }
@@ -213,25 +213,25 @@ void button_state_lezen(){
 
 
 // EXTRA FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++
-// deze functie start de eerste Timer(Slaaptijd)
+// Deze functie start de eerste timer (slaaptijd)
 void timer_one_start(){ 
   if (buttonState == HIGH){
-    startTimeTimerOne = millis();  // Starttijd vastleggen
-    endTimeTimerOne = startTimeTimerOne + timerOneDuration; // eind tijd vastleggen
-    timerOneActive = true;    // Zet timer aan
+    startTimeTimerOne = millis();  // Sla starttijd op
+    endTimeTimerOne = startTimeTimerOne + timerOneDuration; // Sla eindtijd op
+    timerOneActive = true;    // Activeer timer
   }
 }
 
-// deze functie start de tweede timer (na wekker timer)
+// Deze functie start de tweede timer (na het eerste alarm)
 void timer_two_start(){ 
-  startTimeTimerTwo = millis();  // Starttijd vastleggen
-  endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration; // eind tijd vastleggen
-  timerTwoActive = true;    // Zet timer aan
+  startTimeTimerTwo = millis();  // Sla starttijd op
+  endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration; // Sla eindtijd op
+  timerTwoActive = true;    // Activeer timer
 }
 
-// deze functie update alle belagrijke global variabelen
+// Deze functie update alle belangrijke globale variabelen
 void update(){
-  button_state_lezen(); //buttonState wordt bijgewerkt
-  save_gewicht_in_varibel(); // gewicht wordt bijgewerkt
-  huidigetijd = millis(); // huidigetijd wordt bij gewerkt
+  button_state_lezen(); // werk buttonState bij
+  save_gewicht_in_varibel(); // werk gewicht bij
+  huidigetijd = millis(); // werk huidige tijd bij
 }
