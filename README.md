@@ -9,6 +9,21 @@
 
 ---
 
+## Repositorystructuur
+
+De repository van dit project heet **`WAKEY-WAKEY`** en bevat de volgende mappen:
+
+- **`wekker onderdelen`**  
+  Deze map bevat een verzameling submappen, één per hardwareonderdeel (zoals knop, gewichtssensor, mp3-speler). In elke map staat een `.ino`-bestand met **basis/testcode** om het onderdeel los te testen en werkend te krijgen.  
+  Dit is handig bij fouten tijdens het samenstellen van het totale systeem. Sommige mapjes bevatten ook bijhorende libraries.
+
+- **`WEKKER_SAMENSTELLING`**  
+  Bevat de **hoofdcode van het project**: `WEKKER_SAMENSTELLING.ino`.  
+  Dit is het bestand dat je moet uploaden naar de Arduino om het wekker-systeem te laten werken.  
+  In deze map zitten ook externe libraries, een klasgenoot-review (`REVIEW_WASSIM.md`) en de opdrachtbeschrijving (`ASSESSMENT.md`).
+
+---
+
 ## Functionaliteiten
 - **MP3-speler**: Speelt een liedje af vanaf een SD-kaart om je wakker te maken.  
 - **Gewichtssensoren**: Detecteren of je uit bed bent gestapt of weer bent gaan liggen.  
@@ -18,49 +33,15 @@
 
 ## Organisatie van de code
 
-De hoofdcode van het project heet **`WEKKER_SAMENSTELLING.ino`**. Dit is het bestand dat je moet **runnen om de wekker te laten werken**. Hierin zijn alle onderdelen samengevoegd tot één geheel.
+De hoofdcode staat in het bestand **`WEKKER_SAMENSTELLING.ino`**.  
+In dit bestand worden de onderdelen samengebracht tot één werkend systeem.  
+De code bestaat uit functies voor:
+- Initialiseren van onderdelen (gewichtssensor, knop, mp3-speler)
+- Starten van twee timers (slaap- en herstarttimer)
+- Afspelen van een alarm op basis van gewicht en knopstatus
+- Het regelmatig bijwerken van variabelen zoals tijd, gewicht en status
 
-De code is logisch opgebouwd in blokken. Elk blok behandelt een specifiek onderdeel van het systeem:
-
-- **Regel 2–4**: Bibliotheken voor gewichtssensor en MP3-speler.  
-- **Regel 7–15**: Declaraties van alle functies die in de code gebruikt worden.  
-- **Regel 18–25**: Algemene variabelen zoals de tijd en de status van de alarmen.  
-- **Regel 28–39**: Instellingen van de gebruikte pinnen op de Arduino.  
-- **Regel 42–62**: Variabelen voor de sensor, MP3-speler en knop, inclusief instellingen zoals volume en debounce-tijden.  
-- **Regel 65–78**: Timerinstellingen voor het starten van het alarm en een tweede controle.  
-- **Regel 81–85**: De `setup()` functie initialiseert de sensor, de MP3-speler en de knop.  
-- **Regel 88–120**: De `loop()` functie, waar de hoofdlogica van het project plaatsvindt:
-
-### Wat gebeurt er in de `loop()`?  
-- **Regel 90**: Eerst wordt alles geüpdatet (tijd, gewicht, knopstatus).  
-- **Regel 92–95**: Als de eerste timer nog niet is gestart, wordt gekeken of die gestart kan worden (door op de knop te drukken).  
-- **Regel 97–99**: Als de ingestelde tijd van timer één voorbij is, wordt deze uitgeschakeld.  
-- **Regel 101–104**: Als je nog in bed ligt en de eerste timer is voorbij, wordt het alarm afgespeeld.  
-- **Regel 106–109**: Als je opstaat (gewicht < 300g) en op de knop drukt, of het geluid is klaar, dan stopt het alarm en wordt de tweede timer gestart.  
-- **Regel 111–114**: Als je tijdens de tweede timer weer in bed gaat liggen, speelt het alarm opnieuw af.  
-- **Regel 116–118**: Als de tweede timer is afgelopen, wordt die uitgeschakeld.  
-- **Regel 119**: Seriële uitvoer voor debugging (verschil in tijd).
-
-- **Regel 123–einde**: De rest van de code bestaat uit losse functies, waaronder:
-  - Instellen van de gewichtssensor
-  - Uitlezen van het gewicht
-  - Afspelen van het MP3-bestand
-  - Detectie van knopstatus
-  - Starten van timers
-  - Update-functie die alles bijhoudt
-
----
-
-## Bestandsstructuur
-
-Het project bestaat uit:
-
-- **`WEKKER_SAMENSTELLING.ino`**  
-  Dit is de hoofdcode. Hier worden alle onderdelen gecombineerd tot een compleet werkend systeem. Deze code moet je gebruiken om de wekker daadwerkelijk te laten werken.
-
-- **Map: `wekker onderdelen`**  
-  Deze map bevat aparte bestanden met **testcode per onderdeel**. Hiermee kun je elk onderdeel afzonderlijk testen, begrijpen en kalibreren voordat je alles samenvoegt. Denk aan testcode voor de gewichtssensor, de MP3-speler en de knop.  
-  Sommige van deze bestanden zijn gebaseerd op YouTube-tutorials. Dit was vooral handig bij het vinden van de juiste **calibration value** en **tare offset** voor de gewichtssensor, zodat deze goed op 0 kg start — ook als er al iets op ligt.
+De `loop()` zorgt ervoor dat deze functies continu worden gecontroleerd en uitgevoerd zolang de Arduino aan staat.
 
 ---
 
@@ -96,7 +77,6 @@ Hieronder zie je hoe je elk onderdeel moet aansluiten op de Arduino Uno:
 
 2. **Gewichtssensoren**  
    ![Gewicht sensor](gewichtsensor.png)
-   
 
 3. **Drukknop**  
    ![Knop circuit](circuit_button.png)
