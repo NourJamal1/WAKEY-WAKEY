@@ -77,7 +77,8 @@ Het project bestaat uit:
 1. Sluit alle onderdelen aan op de Arduino Uno. De juiste pinnen vind je bovenaan in de `WEKKER_SAMENSTELLING`-code. Verderop in dit document zie je schema's per onderdeel. Onderaan staan video’s die de aansluitingen stap voor stap uitleggen.
 2. Installeer de benodigde bibliotheken:
    - **Extern**: 
-     - [`mp3tf16p`](#) *(https://dev.azure.com/overlording/The%20Last%20Outpost%20Workshop/_git/MP3-TF-16P)*
+     - [Library GitHub](https://dev.azure.com/overlording/The%20Last%20Outpost%20Workshop/_git/MP3-TF-16P)
+
    - **Via Arduino IDE**:
      - `DFRobotDFPlayerMini` (voor de MP3-speler)
      - `HX711_ADC` (voor de gewichtssensor)
@@ -95,6 +96,7 @@ Hieronder zie je hoe je elk onderdeel moet aansluiten op de Arduino Uno:
 
 2. **Gewichtssensoren**  
    ![Gewicht sensor](gewichtsensor.png)
+   
 
 3. **Drukknop**  
    ![Knop circuit](circuit_button.png)
