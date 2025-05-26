@@ -5,233 +5,283 @@
 
 // ____________________________________________________________
 // FUNCTIEDECLARATIES
-void gewicht_sensor_setup();
-void save_gewicht_in_varibel();
-void mp3_player_setup();
-void play_mp3();
-void button_setup();
-void button_state_lezen();
-void timer_one_start();
-void timer_two_start();
-void update();
+void gewicht_sensor_setup();    // Zet de HX711 sensor op, stelt offset en kalibratiewaarde in, controleert status
+void save_gewicht_in_varibel(); // Leest gewichtsdata van de sensor, gemiddeld over intervallen, en slaat op in 'gewicht'
+void mp3_player_setup();        // Initialiseert de MP3-speler, stelt seriële communicatie in
+void play_mp3();                // Start het afspelen van het geselecteerde mp3-tracknummer
+void button_setup();            // Stelt de knop-pin in als input en voedt de knop via een outputPin
+void button_state_lezen();      // Leest de knopstatus met debounce en slaat op in 'buttonState'
+void timer_one_start();         // Start de slaaptimer wanneer de knop wordt ingedrukt
+void timer_two_start();         // Start de controletimer na het uitschakelen van het eerste alarm
+void update();                  // Werk knopstatus, gewichtsmeting en huidige tijd bij
 
 // ____________________________________________________________
 // ALGEMENE VARIABELEN
-long huidigetijd = 0;
-bool eersteAlarmActief = false;
-bool tweedeAlarmActief = false;
+long huidigetijd = 0;           // Huidige tijd in milliseconden sinds Arduino start
+bool eersteAlarmActief = false; // Flag: eerste alarm is actief
+bool tweedeAlarmActief = false; // Flag: tweede alarm is actief
 
 // ____________________________________________________________
 // PINS GEWICHT
-const int gewichtSensorDataPin = 6;             // MCU > HX711 datapin
-const int gewichtSensorClockPin = 7;            // MCU > HX711 klokpin
+const int gewichtSensorDataPin = 6;   // HX711 SDA (data)
+const int gewichtSensorClockPin = 7;  // HX711 SCK (klok)
+// HX711 gebruikt deze 2 lijnen voor brugmeting en gewichtsbepaling
 
 // ____________________________________________________________
 // PINS MP3-SPELER
-const int RX = 10;                    // RX-pin
-const int TX = 11;                    // TX-pin
+const int RX = 10; // RX naar MP3 TX
+const int TX = 11; // TX naar MP3 RX
 
 // ____________________________________________________________
 // PINS KNOP
-const int buttonPin = 2;             // Pin waarop de knop is aangesloten
-const int outputPin = 12;            // Pin die hoog wordt gehouden
+typedef int pin_t;
+const pin_t buttonPin = 2;   // Input van fysieke knop
+const pin_t outputPin = 12;  // Output voedende spanning voor de knop
+// Omdat de knop een extern circuit voedt, zetten we outputPin hoog zodat buttonPin betrouwbaar HIGH kan lezen
 
 // ____________________________________________________________
 // GEWICHTSENSOR VARIABELEN
-HX711_ADC LoadCell(gewichtSensorDataPin, gewichtSensorClockPin); // stel pinnen in
-const int calVal_calVal_eepromAdress = 0;
-unsigned long t = 0;
-float gewicht = 0; // globale variabele voor gewicht in gram
+HX711_ADC LoadCell(gewichtSensorDataPin, gewichtSensorClockPin); // Sensorobject
+const int calVal_calVal_eepromAdress = 0; // EEPROM-adres (niet gebruikt)
+unsigned long t = 0;         // Tijdstempel voor seriële print-interval
+float gewicht = 0;           // Laatste gewichtswaarde in gram
 
 // ____________________________________________________________
 // MP3-SPELER VARIABELEN
-MP3Player mp3(RX, TX);               // pinnen voor seriële communicatie
-int trackNumber = 3;                 // wijzig track hier, bestanden zijn gesorteerd op datum
-int volume = 1;                      // 0 is het zachtst, 30 is het hardst
-boolean isplaying = false;          // als een geluid wordt afgespeeld dan true
+MP3Player mp3(RX, TX);       // MP3 speler object
+int trackNumber = 3;          // Track index
+int volume = 1;               // Volume 0-30
+boolean isplaying = false;    // Speelstatus
 
 // ____________________________________________________________
 // KNOP VARIABELEN
-int buttonState = LOW;                  // Variabele om de huidige status van de knop te lezen
-int lastButtonState = LOW;              // Variabele om de vorige knopstatus op te slaan
-unsigned long lastDebounceTime = 0;     // Tijdstip van de laatste knopstatusverandering
-const unsigned long debounceDelay = 50; // Ontdenderingstijd in milliseconden
+int buttonState = LOW;        // Huidige knopstatus
+int lastButtonState = LOW;    // Vorige knopstatus voor debounce
+unsigned long lastDebounceTime = 0;          // Tijdstip van laatste toggling
+const unsigned long debounceDelay = 50;      // Debounce vertraging in ms
 
 // ____________________________________________________________
 // TIMER EEN VARIABELEN
-const unsigned long timerOneDuration = 5000;     // Timer van 8,25 uur (test: 5 sec)
-unsigned long startTimeTimerOne = 0;             // Tijdstip waarop de timer begint
-unsigned long endTimeTimerOne = 0;               // Tijdstip waarop de timer eindigt
-bool timerOneActive = false;                     // Status van de timer
-bool timerOneEnded = false;                      // Of de timer afgelopen is
+const unsigned long timerOneDuration = 5000; // Duur slaaptimer (test: 5s)
+unsigned long startTimeTimerOne = 0;          // Starttijd slaaptimer
+unsigned long endTimeTimerOne = 0;            // Eindtijd slaaptimer
+bool timerOneActive = false;                  // Loopt slaaptimer
+bool timerOneEnded = false;                   // Klaar slaaptimer
 
 // ____________________________________________________________
 // TIMER TWEE VARIABELEN
-const unsigned long timerTwoDuration = 15000;    // Timer van 8,25 uur (test: 15 sec)
-unsigned long startTimeTimerTwo = 0;             // Tijdstip waarop de timer begint
-unsigned long endTimeTimerTwo = 0;               // Tijdstip waarop de timer eindigt
-bool timerTwoActive = false;                     // Status van de timer
-bool timerTwoEnded = false;                      // Of de timer afgelopen is
+const unsigned long timerTwoDuration = 15000; // Duur controletimer (test: 15s)
+unsigned long startTimeTimerTwo = 0;           // Starttijd controletimer
+unsigned long endTimeTimerTwo = 0;             // Eindtijd controletimer
+bool timerTwoActive = false;                  // Loopt controletimer
+bool timerTwoEnded = false;                   // Klaar controletimer
 
 // ____________________________________________________________
 void setup() {
-  gewicht_sensor_setup(); // initialiseer gewichtssensor
-  mp3_player_setup();     // initialiseer mp3-speler
-  button_setup();         // initialiseer knop
+  // Setup-fase: initialiseer alle onderdelen
+  gewicht_sensor_setup(); // Sensor kalibratie en start
+  mp3_player_setup();     // MP3 speler initialiseren
+  button_setup();         // Knop en voeding instellen
 }
 
 // ____________________________________________________________
 void loop() {
+  // Hoofdloop van de wekker:
+  // 1) Update sensoren en tijd
+  update();
 
-  update(); // update globale variabelen
-  // zolang de timer nog niet gestart is, probeer hem te starten
+  // 2) Slaaptimer-fase: de gebruiker drukt op knop om te gaan slapen
   while (!timerOneActive && !timerOneEnded) {
-    update(); // update globale variabelen
-    timer_one_start(); // probeer timer één te starten
+    update();
+    timer_one_start(); // Start slaaptimer als knop HIGH
   }
-  // controleer of timer één voorbij is
-  if (huidigetijd > endTimeTimerOne){
+  // Controleer of slaaptimer afgelopen is
+  if (huidigetijd > endTimeTimerOne) {
     timerOneActive = false;
     timerOneEnded = true;
   }
-  // Als timer één voorbij is en je ligt nog in bed, speel dan het alarm af
-  if (timerOneEnded && gewicht > 300 && !eersteAlarmActief){
-    play_mp3(); // speel alarmgeluid af
-    eersteAlarmActief = true; // geef aan dat het eerste alarm gestart is
+
+  // 3) Eerste alarm: na slaaptimer en gebruiker ligt nog in bed (gewicht > 300)
+  if (timerOneEnded && gewicht > 300 && !eersteAlarmActief) {
+    play_mp3();             // Speel alarmgeluid
+    eersteAlarmActief = true;
   }
-  // Stop het alarm als je uit bed bent en op de knop drukt, en start timer twee
-  if (buttonState == HIGH && gewicht < 300 || mp3.playCompleted()){
-    mp3.player.stop(); // stop het mp3-geluid
-    timer_two_start(); // start de tweede timer
-    tweedeAlarmActief = false; // reset status tweede alarm
+
+  // 4) Stop eerste alarm: gebruiker staat op (gewicht < 300) en drukt knop of mp3 klaar
+  if ((buttonState == HIGH && gewicht < 300) || mp3.playCompleted()) {
+    mp3.player.stop();      // Stop mp3
+    timer_two_start();       // Start controletimer
+    tweedeAlarmActief = false;
   }
-  // Als timer twee actief is en je weer in bed ligt, speel dan opnieuw het alarm af
-  if (timerTwoActive && gewicht > 300 && !tweedeAlarmActief){
-    play_mp3(); // speel alarmgeluid af
-    tweedeAlarmActief = true; // geef aan dat tweede alarm gestart is
+
+  // 5) Controlefase: binnen controletimer detecteren we her-liggen
+  if (timerTwoActive && gewicht > 300 && !tweedeAlarmActief) {
+    play_mp3();              // Herhaal alarm
+    tweedeAlarmActief = true;
   }
-  // Als timer twee voorbij is
-  if (huidigetijd > endTimeTimerTwo){
-    timerTwoActive = false; // zet timer twee uit
-    timerTwoEnded = true; // markeer timer twee als voltooid
+
+  // 6) Controle of controletimer klaar is
+  if (huidigetijd > endTimeTimerTwo) {
+    timerTwoActive = false;
+    timerTwoEnded = true;
   }
-  Serial.println(endTimeTimerTwo - huidigetijd);
+
+  // Debug: toon resterende seconden controletimer
+  Serial.println((endTimeTimerTwo - huidigetijd) / 1000);
 }
 
-
-// GEWICHTSENSOR FUNCTIES+++++++++++++++++++++++++++++++++++++
-// Dit is de setup van de gewichtssensor
+// ____________________________________________________________
+// GEWICHTSENSOR FUNCTIES
+// Deze functie initialiseert de HX711-gewichtssensor en kalibreert deze:
+// 1. Start de seriële communicatie om foutmeldingen te tonen.
+// 2. Stel de tare-offset in zodat een leeg meetplatform 0 kg aangeeft.
+// 3. Begin de sensor en geef een stabilisatietijd zodat de metingen nauwkeurig worden.
+// 4. Controleer of de sensor binnen verwachte sample rates werkt (SPS) en waarschuw bij fouten.
 void gewicht_sensor_setup(){ 
-  Serial.begin(9600); delay(10);
+  Serial.begin(9600);                // Activeer seriële monitor voor debug en foutmeldingen
+  delay(10);                         // Kort wachten zodat seriële poort klaar is
 
-  float calibrationValue = 23.20; // kalibratiewaarde
-  
-  const long newTareOffset = 8271272; // nulpunt-offset
-  LoadCell.setTareOffset(newTareOffset); // stel offset in
+  float calibrationValue = 23.20;    // Kalibratiefactor: bepaalt weging in gram per raw unit
+  const long newTareOffset = 8271272;// Offsetwaarde voor tare: basisnulstandinstelling
+  LoadCell.setTareOffset(newTareOffset);
 
-  LoadCell.begin();
-  unsigned long stabilizingtime = 2000; // stabilisatietijd om meetnauwkeurigheid te verbeteren
-  boolean _tare = false; // zet op true om tarra uit te voeren, false om over te slaan
-  LoadCell.start(stabilizingtime, _tare);
-  if (LoadCell.getTareTimeoutFlag()) {
+  LoadCell.begin();                  // Initialiseer HX711-communicatie
+  unsigned long stabilizingtime = 2000; // Tijd in ms om sensorstabilisatie te voltooien
+  boolean _tare = false;             // Skip automatische tarra herberekening
+  LoadCell.start(stabilizingtime, _tare); // Begin met meten na stabilisatie
+
+  if (LoadCell.getTareTimeoutFlag()) {  // Controleer of tarra niet binnen tijd startte
     Serial.println("FOUT: CONTROLEER BEKABELING");
+  } else {
+    LoadCell.setCalFactor(calibrationValue); // Stel kalibratiefactor in voor nauwkeurige gewichtsdata
   }
-  else {
-    LoadCell.setCalFactor(calibrationValue); // stel kalibratiefactor in (float)
-  }
-  while (!LoadCell.update());
-  if (LoadCell.getSPS() < 7) {
-    Serial.println("FOUT: CONTROLEER BEKABELING");
-  }
-  else if (LoadCell.getSPS() > 100) {
+
+  while (!LoadCell.update());       // Wacht tot de eerste meting beschikbaar is
+
+  // Controleer of samples per seconde (SPS) binnen verwachte range vallen
+  long sps = LoadCell.getSPS();     
+  if (sps < 7 || sps > 100) {
     Serial.println("FOUT: CONTROLEER BEKABELING");
   }
 }
 
-// Deze functie slaat het gewicht op in de variabele 'gewicht'
+// Lees en verwerk gewichtsmetingen:
+// 1. Vraag de sensor om een nieuwe meting (LoadCell.update()).
+// 2. Zodra er nieuwe data beschikbaar is, wacht tot de geplande print-interval verstreken is.
+// 3. Bereken en sla het gemiddelde gewicht op in de variabele 'gewicht'.
 void save_gewicht_in_varibel(){
-  static boolean newDataReady = 0;
-  const int serialPrintInterval = 500; // verhoog deze waarde om seriële uitvoer te vertragen
-  // controleer op nieuwe data en start nieuwe meting
-  if (LoadCell.update()) newDataReady = true;
+  static boolean newDataReady = false;           // Flag dat aangeeft dat er nieuwe data is
+  const int serialPrintInterval = 500;           // Minimale tijd tussen seriële prints in ms
 
-  // haal gemiddelde waarde op uit dataset
+  if (LoadCell.update()) newDataReady = true;    // Update data en zet flag
+
   if (newDataReady) {
+    // Controleer of interval verstreken is om print-throttling te voorkomen
     if (millis() > t + serialPrintInterval) {
-      gewicht = LoadCell.getData();
-      newDataReady = 0;
-      t = millis();
+      gewicht = LoadCell.getData();              // Lees gemeten gewicht (in gram)
+      newDataReady = false;                      // Reset flag
+      t = millis();                              // Herstart interval timer
     }
   }
 }
 
-
-// MP3 FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++++
-// Dit is de setup van de mp3-speler
+// ____________________________________________________________
+// MP3 FUNCTIES
+// Initialiseert de MP3-speler module:
+// - Start seriële communicatie op 9600 baud voor commando's
+// - Roep mp3.initialize() aan om de DFPlayer klaar te zetten
 void mp3_player_setup(){
   Serial.begin(9600);
   mp3.initialize();
 }
 
-// Deze functie speelt een geluid af dat op de mp3-speler is opgeslagen
+// Speelt een track af op de MP3-speler:
+// - Bepaalt het track-nummer en volume
+// - Zet de 'isplaying' status op true zodat andere logica weet dat het geluid loopt
 void play_mp3(){
   mp3.playTrackNumber(trackNumber, volume, false);
   isplaying = true;
 }
 
-
-// KNOP FUNCTIES++++++++++++++++++++++++++++++++++++++++++++++
-// Dit is de setup van de knop
+// ____________________________________________________________
+// KNOP FUNCTIES
+// Stel de hardwareknop in met pull-up via aparte outputPin:
+// 1. buttonPin als ingang om druk te detecteren
+// 2. outputPin hoog zetten voor voeding naar de knop
 void button_setup(){
-  pinMode(buttonPin, INPUT);       // Pin 2 als invoer
-  pinMode(outputPin, OUTPUT);      // Pin 12 als uitvoer
-  digitalWrite(outputPin, HIGH);   // Houd pin 12 constant hoog
-  Serial.begin(9600);              // Start seriële monitor voor debuggen 
+  pinMode(buttonPin, INPUT);       // Lees knopstatus
+  pinMode(outputPin, OUTPUT);      // Voed knop
+  digitalWrite(outputPin, HIGH);   // Zet voeding aan zodat buttonPin HIGH wordt bij druk
 }
 
-// Deze functie slaat de status van de knop op in de variabele buttonState
+// Debounce en lees knopstatus:
+// - Voorkomt onbedoelde flutters door korte onderbrekingen
+// - update buttonState na stabiele periode
 void button_state_lezen(){
-  // Lees de huidige status van de knop
-  int sensorReading = digitalRead(buttonPin);
-
-  // Controleer of de knopstatus veranderd is
+  int sensorReading = digitalRead(buttonPin);  // Lees fysieke knop
   if (sensorReading != lastButtonState) {
-    lastDebounceTime = millis(); // Tijdstip van verandering opslaan
+    lastDebounceTime = millis();               // Reset debounce timer bij verandering
   }
-
-  // Pas de status toe na de debounce delay
   if ((millis() - lastDebounceTime) > debounceDelay) {
-    // Controleer of de status daadwerkelijk is veranderd
+    // Pas status toe als de knop lange genoeg stabiel is
     if (sensorReading != buttonState) {
-      buttonState = sensorReading;
+      buttonState = sensorReading;             // Werk buttonState bij
     }
   }
-
-  // Sla de huidige knopstatus op voor de volgende loop
-  lastButtonState = sensorReading;
+  lastButtonState = sensorReading;             // Sla vorige status op voor volgende loop
 }
 
-
-// EXTRA FUNCTIES+++++++++++++++++++++++++++++++++++++++++++++
-// Deze functie start de eerste timer (slaaptijd)
+// ____________________________________________________________
+// TIMER & UPDATE FUNCTIES
+// Start slaaptimer (fase 1) wanneer knop wordt ingedrukt:
+// - Vastleggen huidige tijd als start
+// - Bereken eindtijd op basis van duration constant
 void timer_one_start(){ 
-  if (buttonState == HIGH){
-    startTimeTimerOne = millis();  // Sla starttijd op
-    endTimeTimerOne = startTimeTimerOne + timerOneDuration; // Sla eindtijd op
-    timerOneActive = true;    // Activeer timer
+  if (buttonState == HIGH) {
+    startTimeTimerOne = millis();
+    endTimeTimerOne = startTimeTimerOne + timerOneDuration;
+    timerOneActive = true;
   }
 }
 
-// Deze functie start de tweede timer (na het eerste alarm)
+// Start controletimer (fase 2) na stoppen eerste alarm:
+// - Vastleggen huidige tijd
+// - Eindtijd = start + timerTwoDuration
 void timer_two_start(){ 
-  startTimeTimerTwo = millis();  // Sla starttijd op
-  endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration; // Sla eindtijd op
-  timerTwoActive = true;    // Activeer timer
+  startTimeTimerTwo = millis();
+  endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration;
+  timerTwoActive = true;
 }
 
-// Deze functie update alle belangrijke globale variabelen
+// Werk alle variabelen bij in elke loop-iteratie:
+// 1. Lees knopstatus met debounce
+// 2. Lees en verwerk gewicht
+// 3. Update huidigetijd voor timerchecks
 void update(){
-  button_state_lezen(); // werk buttonState bij
-  save_gewicht_in_varibel(); // werk gewicht bij
-  huidigetijd = millis(); // werk huidige tijd bij
+  button_state_lezen();          
+  save_gewicht_in_varibel();     
+  huidigetijd = millis();        
+}
+// TIMER & UPDATE FUNCTIES
+// Start slaaptimer op knopdruk
+void timer_one_start(){ 
+  if (buttonState == HIGH) {
+    startTimeTimerOne = millis();
+    endTimeTimerOne = startTimeTimerOne + timerOneDuration;
+    timerOneActive = true;
+  }
+}
+
+// Start controletimer na stop eerste alarm
+void timer_two_start(){ 
+  startTimeTimerTwo = millis();
+  endTimeTimerTwo = startTimeTimerTwo + timerTwoDuration;
+  timerTwoActive = true;
+}
+
+// Werk knop, gewicht en tijd variabelen bij voor de volgende loop
+void update(){
+  button_state_lezen();
+  save_gewicht_in_varibel();
+  huidigetijd = millis();
 }
